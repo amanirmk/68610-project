@@ -2,7 +2,7 @@ import abc
 
 from pydantic import BaseModel
 
-from lullaby.abstract import Object, classproperty
+from integration.abstract import Object, classproperty
 
 
 class SimpleType(BaseModel):

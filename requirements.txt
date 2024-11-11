@@ -24,6 +24,3 @@ statsmodels==0.14.1
 matplotlib==3.8.2
 
 # ai models
-openai==0.28.1
-tiktoken==0.5.1
-torch==1.13.1

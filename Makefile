@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 EXEC := python=3.10
-PACKAGE := lullaby
+PACKAGE := integration
 RUN := python -m
 INSTALL := $(RUN) pip install
 ACTIVATE := source activate $(PACKAGE)

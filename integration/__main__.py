@@ -1,7 +1,7 @@
 from transformers import HfArgumentParser
 
-from lullaby.abstract import Object
-from lullaby.args import Arguments
+from integration.abstract import Object
+from integration.args import Arguments
 
 
 def main() -> None:
