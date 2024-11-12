@@ -1,5 +1,6 @@
 from typing import Dict, Tuple
 import re
+import os
 import json
 import pandas as pd
 from PIL import Image
@@ -31,7 +32,10 @@ def evaluate(args) -> None:
 def stimulus_to_prompt(stimulus: Dict[str, str]) -> Tuple[Image.Image, str, str, str]:
     assert stimulus.keys() == frozenset(["image", "text", "disambig"])
 
+    # unclear if need jpg format or etc.
     image = Image.open(stimulus["image"])
+    if not image.mode == 'RGB':
+        image = image.convert('RGB')
 
     prefix, critical, _ = stimulus["text"].split("|")
     plus_amb = re.sub("<disambig>", "", prefix)
@@ -51,7 +55,7 @@ def prompt_vlm(
     plus_amb_img_score, minus_amb_img_score = model.conditional_score(
         prefix=[plus_amb, minus_amb],
         stimuli=[critical, critical],
-        image=image,
+        image=[image, image],
         reduction=lambda x: x.sum(0).item(),
     )
 
