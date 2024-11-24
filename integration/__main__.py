@@ -1,5 +1,4 @@
 from transformers import HfArgumentParser
-import os
 
 from integration.args import Arguments
 from integration.evaluate import evaluate
