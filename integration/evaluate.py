@@ -62,7 +62,7 @@ def prompt_vlm(
     plus_amb_score, minus_amb_score = model.conditional_score(
         prefix=[plus_amb, minus_amb],
         stimuli=[critical, critical],
-        image=None,
+        image=None,  # FIX WITH PATH TO BLANK IMAGE
         reduction=lambda x: x.sum(0).item(),
     )
 
