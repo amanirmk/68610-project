@@ -1,16 +1,12 @@
 from transformers import HfArgumentParser
 
-from integration.abstract import Object
 from integration.args import Arguments
+from integration.evaluate import evaluate
 
 
 def main() -> None:
-    class Main(Object):
-        pass
-
     args = HfArgumentParser(Arguments).parse_args()
-    # do things with args
-    Main.info(f"Ran module with args: {vars(args)}")
+    evaluate(args)
 
 
 if __name__ == "__main__":

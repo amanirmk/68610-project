@@ -1,9 +1,15 @@
 import dataclasses
-from typing import Optional
+from typing import List
 
 
 @dataclasses.dataclass
 class Arguments:
-    example_arg: Optional[str] = dataclasses.field(
-        default="example value",
+    stimuli_file: str = dataclasses.field(
+        default="stimuli/stimuli.json",
+    )
+    model_names: List[str] = dataclasses.field(
+        default_factory=lambda: ["Salesforce/blip2-opt-2.7b"],
+    )
+    device: str = dataclasses.field(
+        default="cuda",
     )
