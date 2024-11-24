@@ -25,7 +25,7 @@ def evaluate(args) -> None:
                 }
             )
     df = pd.DataFrame(rows)
-    df.to_csv("results.csv", index=False)
+    save_results(df)
 
 
 def stimulus_to_prompt(stimulus: Dict[str, str]) -> Tuple[Image.Image, str, str, str]:
@@ -50,19 +50,32 @@ def prompt_vlm(
     model: scorer.VLMScorer, prompt: Tuple[Image.Image, str, str, str]
 ) -> Tuple[float, float, float, float]:
     image, plus_amb, minus_amb, critical = prompt
+    blank = Image.new("RGB", image.size, color="black")
 
     plus_amb_img_score, minus_amb_img_score = model.conditional_score(
         prefix=[plus_amb, minus_amb],
         stimuli=[critical, critical],
         image=[image, image],
-        reduction=lambda x: x.sum(0).item(),
+        reduction=lambda x: -x.sum(0).item(),
     )
 
     plus_amb_score, minus_amb_score = model.conditional_score(
         prefix=[plus_amb, minus_amb],
         stimuli=[critical, critical],
-        image=None,  # FIX WITH PATH TO BLANK IMAGE
-        reduction=lambda x: x.sum(0).item(),
+        image=[blank, blank],
+        reduction=lambda x: -x.sum(0).item(),
     )
 
     return plus_amb_score, minus_amb_score, plus_amb_img_score, minus_amb_img_score
+
+
+def save_results(df: pd.DataFrame) -> None:
+    df["DT"] = df["plus_amb_score"] - df["minus_amb_score"]
+    df["DV"] = df["plus_amb_score"] - df["plus_amb_img_score"]
+    df["DV_adj"] = df["DV"] - (df["minus_amb_score"] - df["minus_amb_img_score"])
+    df["ViPr"] = df["DV"] / df["DT"]
+    df["ViPr_adj"] = df["DV_adj"] / df["DT"]
+    df.to_csv("all_scores.csv", index=False)
+
+    summary = df.groupby("model")[["ViPr", "ViPr_adj"]].mean().reset_index()
+    summary.to_csv("summary.csv", index=False)
