@@ -25,13 +25,12 @@ def evaluate(args) -> None:
                 }
             )
     df = pd.DataFrame(rows)
-    save_results(df)
+    compute_and_save_scores(df)
 
 
 def stimulus_to_prompt(stimulus: Dict[str, str]) -> Tuple[Image.Image, str, str, str]:
     assert stimulus.keys() == frozenset(["image", "text", "disambig"])
 
-    # unclear if need jpg format or etc.
     image = Image.open(stimulus["image"])
     if not image.mode == "RGB":
         image = image.convert("RGB")
@@ -69,7 +68,7 @@ def prompt_vlm(
     return plus_amb_score, minus_amb_score, plus_amb_img_score, minus_amb_img_score
 
 
-def save_results(df: pd.DataFrame) -> None:
+def compute_and_save_scores(df: pd.DataFrame) -> None:
     df["DT"] = df["plus_amb_score"] - df["minus_amb_score"]
     df["DV"] = df["plus_amb_score"] - df["plus_amb_img_score"]
     df["DV_adj"] = df["DV"] - (df["minus_amb_score"] - df["minus_amb_img_score"])
