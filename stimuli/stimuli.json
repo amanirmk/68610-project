@@ -4,6 +4,46 @@
       "image": "stimuli/images/Picture 95.png",
       "text": "While the woman stirred <disambig> the big pot |warmed| up on the stove.",
       "disambig": "the pan"
+    },
+    {
+      "image": "stimuli/images/Picture 54.png",
+      "text": "The boy <disambig> offered the shirt |looked| unhappy.",
+      "disambig": "who was"
+    },
+    {
+      "image": "stimuli/images/Picture 7.png",
+      "text": "When the girl painted<disambig> her arm |was| colored by the boy.",
+      "disambig": ","
+    },
+    {
+      "image": "stimuli/images/Picture 35.png",
+      "text": "While the child cleaned <disambig> the mom |sat| on the couch.",
+      "disambig": "the table"
+    },
+    {
+      "image": "stimuli/images/Picture 88.png",
+      "text": "When the woman ordered<disambig> her boyfriend |was| still deciding on what to eat.",
+      "disambig": ","
+    },
+    {
+      "image": "stimuli/images/Picture 103.png",
+      "text": "The son <disambig> gifted the new shoes |let| his dad help put them on.",
+      "disambig": "who was"
+    },
+    {
+      "image": "stimuli/images/Picture 145.png",
+      "text": "The boy <disambig> just sold ice cream |felt| happy about the size of the scoops.",
+      "disambig": "who was"
+    },
+    {
+      "image": "stimuli/images/Picture 149.png",
+      "text": "As the girls excitedly studied<disambig> the boy |wrote| in his notebook.",
+      "disambig": ","
+    },
+    {
+      "image": "stimuli/images/Picture 188.png",
+      "text": "Although the two kids were about to win <disambig> the tied shoes |made| it difficult to cross the finish line.",
+      "disambig": "the race"
     }
   ]
 }
