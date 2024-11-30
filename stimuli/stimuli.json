@@ -1,11 +1,6 @@
 {
   "items": [
     {
-      "image": "stimuli/images/Picture 95.png",
-      "text": "While the woman stirred <disambig> the big pot |warmed| up on the stove.",
-      "disambig": "the pan"
-    },
-    {
       "image": "stimuli/images/Picture 54.png",
       "text": "The boy <disambig> offered the shirt |looked| unhappy.",
       "disambig": "who was"
@@ -14,6 +9,11 @@
       "image": "stimuli/images/Picture 7.png",
       "text": "When the girl painted<disambig> her arm |was| colored by the boy.",
       "disambig": ","
+    },
+    {
+      "image": "stimuli/images/Picture 95.png",
+      "text": "While the woman stirred <disambig> the big pot |warmed| up on the stove.",
+      "disambig": "the pan"
     },
     {
       "image": "stimuli/images/Picture 35.png",
@@ -27,7 +27,7 @@
     },
     {
       "image": "stimuli/images/Picture 103.png",
-      "text": "The son <disambig> gifted the new shoes |let| his dad help put them on.",
+      "text": "The son <disambig> gifted the new shoes |had| his dad help put them on.",
       "disambig": "who was"
     },
     {
@@ -44,6 +44,41 @@
       "image": "stimuli/images/Picture 188.png",
       "text": "Although the two kids were about to win <disambig> the tied shoes |made| it difficult to cross the finish line.",
       "disambig": "the race"
+    },
+    {
+      "image": "stimuli/images/Picture 17.png",
+      "text": "When the girl tripped <disambig> the kids |watched| from the bus with concern.",
+      "disambig": "on the sidewalk"
+    },
+    {
+      "image": "stimuli/images/Picture 26.png",
+      "text": "When the boy drew<disambig> his mom |was| not happy about the location.",
+      "disambig": ","
+    },
+    {
+      "image": "stimuli/images/Picture 6.png",
+      "text": "When the snake hid <disambig> the child |became| scared.",
+      "disambig": "under the bed"
+    },
+    {
+      "image": "stimuli/images/Picture 81.png",
+      "text": "After the customer finished deciding<disambig> the employee |completed| the order.",
+      "disambig": ","
+    },
+    {
+      "image": "stimuli/images/Picture 118.png",
+      "text": "After the family returned <disambig> the car |needed| to be unpacked.",
+      "disambig": "from buying groceries"
+    },
+    {
+      "image": "stimuli/images/Picture 159.png",
+      "text": "The dog <disambig> walked by the girl |panted| happily.",
+      "disambig": "that was"
+    },
+    {
+      "image": "stimuli/images/Picture 164.png",
+      "text": "When the squirrel climbed <disambig> the girl |was| delighted.",
+      "disambig": "the tree"
     }
   ]
 }
