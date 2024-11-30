@@ -1,9 +1,10 @@
 import pandas as pd
 from transformers import AutoModelForVision2Seq, AutoModelForVisualQuestionAnswering
 
+
 def get_downstream_performance(
     model_name: str, output_file: str, device: str = "cuda"
-) -> float:
+) -> None:
     tasks = {
         "VQA": test_vqa,
         "NLVR": test_nlvr,
@@ -11,12 +12,7 @@ def get_downstream_performance(
     }
     rows = []
     for task_name, task_func in tasks.items():
-        rows.append(
-            {
-                "model": model_name,
-                task_name: task_func(model_name, device)
-            }
-        )
+        rows.append({"model": model_name, task_name: task_func(model_name, device)})
     df = pd.DataFrame(rows)
     df.to_csv(output_file)
 
