@@ -4,26 +4,32 @@ import json
 import pandas as pd
 from PIL import Image
 from minicons import scorer
+from integration.abstract import Object
 
+class Eval(Object):
+    pass
 
 def evaluate(args) -> None:
     rows = []
     with open(args.stimuli_file, encoding="utf-8") as f:
         stimuli = json.load(f)
     for model_name in args.model_names:
-        model = scorer.VLMScorer(model_name, device=args.device)
-        for stimulus in stimuli["items"]:
-            prompt = stimulus_to_prompt(stimulus)
-            scores = prompt_vlm(model, prompt)
-            rows.append(
-                {
-                    "model": model_name,
-                    "plus_amb_score": scores[0],
-                    "minus_amb_score": scores[1],
-                    "plus_amb_img_score": scores[2],
-                    "minus_amb_img_score": scores[3],
-                }
-            )
+        try:
+            model = scorer.VLMScorer(model_name, device=args.device)
+            for stimulus in stimuli["items"]:
+                prompt = stimulus_to_prompt(stimulus)
+                scores = prompt_vlm(model, prompt)
+                rows.append(
+                    {
+                        "model": model_name,
+                        "plus_amb_score": scores[0],
+                        "minus_amb_score": scores[1],
+                        "plus_amb_img_score": scores[2],
+                        "minus_amb_img_score": scores[3],
+                    }
+                )
+        except Exception as e:
+            Eval.error(f"Failed to evaluate {model_name}: {e}")
     df = pd.DataFrame(rows)
     compute_and_save_scores(df)
 
