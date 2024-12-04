@@ -9,8 +9,10 @@ from dotenv import load_dotenv
 def main() -> None:
     load_dotenv()
     args = HfArgumentParser(Arguments).parse_args()
-    evaluate(args)
-    evaluate_downstream(args)
+    if args.do_vipr_and_sizes:
+        evaluate(args)
+    if args.do_vqa2_zeroshot or args.do_nlvr_zeroshot:
+        evaluate_downstream(args)
 
 
 if __name__ == "__main__":

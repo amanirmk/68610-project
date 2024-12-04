@@ -1,0 +1,12 @@
+model,VQA2_exact_acc,VQA2_partial_acc
+Salesforce/blip-image-captioning-large,0.0,0.042665000000001264
+microsoft/git-base,0.0,0.044760000000001354
+microsoft/git-large,0.0,0.04265900000000126
+microsoft/git-base-coco,0.0,0.04362400000000131
+microsoft/git-large-coco,0.0,0.04265900000000126
+google/paligemma-3b-pt-224,-1.0,-1.0
+google/paligemma-3b-pt-448,-1.0,-1.0
+google/paligemma-3b-mix-224,-1.0,-1.0
+google/paligemma-3b-mix-448,-1.0,-1.0
+google/paligemma-3b-ft-ocrvqa-224,-1.0,-1.0
+google/paligemma-3b-ft-ocrvqa-448,-1.0,-1.0
