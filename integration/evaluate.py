@@ -43,7 +43,7 @@ def evaluate(args) -> None:
 
     model_size_df = pd.DataFrame(model_sizes)
     model_size_df.to_csv(
-        f"{'_'.join(m.m.split('/')[1] for m in model_size_df['model'].unique())}_sizes.csv",
+        f"{'_'.join(m.split('/')[1] for m in model_size_df['model'].unique())}_sizes.csv",
         index=False,
     )
 
