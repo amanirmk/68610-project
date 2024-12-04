@@ -1,5 +1,6 @@
 # Module related
 # add module related files here (e.g. data, outputs, etc.)
+.env
 
 # Mac
 .DS_Store
