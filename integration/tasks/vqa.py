@@ -2,11 +2,18 @@ from typing import List, Dict, Any, Tuple, Optional
 from tqdm import tqdm
 import copy
 import re
+import random
 import pandas as pd
-from transformers import AutoModelForVision2Seq, AutoProcessor, AutoTokenizer
+import numpy as np
+from transformers import AutoModelForVision2Seq, AutoProcessor, AutoTokenizer, get_linear_schedule_with_warmup, AdamW
 import torch
 from torch.utils.data import DataLoader
 from datasets import load_dataset
+from integration.util import parse_decoded_output, load_model_and_processor, format_prompt
+from integration.abstract import Object
+
+class VQA(Object):
+    pass
 
 # ADAPTED FROM https://github.com/GT-Vision-Lab/VQA/blob/master/PythonEvaluationTools/vqaEvaluation/vqaEval.py
 
@@ -251,22 +258,33 @@ def eval_vqa(results: List[Dict[str, Any]]) -> Tuple[float, float]:
 
     overall_exact_acc = float(sum(question_exact_accs)) / len(question_exact_accs)
     overall_partial_acc = float(sum(question_partial_accs)) / len(question_partial_accs)
+    VQA.info(f"Exact acc = {overall_exact_acc:.3f}, Partial acc = {overall_partial_acc:.3f}")
     return overall_exact_acc, overall_partial_acc
 
 
 # ORIGINAL CODE
 
-
 def zeroshot_vqa2(
     model_name: str,
-    device: str,
-    max_answer_tokens: int = 10,
-    batch_size: int = 250,
+    save_intermediate: bool = False,
     limit: Optional[int] = None,
 ) -> Tuple[float, float]:
-    model = AutoModelForVision2Seq.from_pretrained(model_name).to(device)
-    processor = AutoProcessor.from_pretrained(model_name, padding_side="left")
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model, processor = load_model_and_processor(model_name, padding_side="left")
+    return test_vqa2(model_name, model, processor, save_intermediate=save_intermediate, limit=limit, tag='zeroshot')
+
+
+def test_vqa2(
+    model_name: str,
+    model: AutoModelForVision2Seq,
+    processor: AutoProcessor,
+    save_intermediate: bool = False,
+    max_answer_tokens: int = 30,
+    batch_size: int = 250,
+    limit: Optional[int] = None,
+    tag: Optional[str] = None,
+) -> Tuple[float, float]:
+    model.eval()
+    processor.tokenizer.padding_side = 'left'
 
     dataset = load_dataset(
         "HuggingFaceM4/VQAv2", split="validation", trust_remote_code=True
@@ -281,7 +299,11 @@ def zeroshot_vqa2(
 
     for batch in tqdm(dataloader, desc="Collecting VQA Predictions"):
         questions_batch = [
-            "QUESTION: " + example["question"] + "\nANSWER: " for example in batch
+            format_prompt(
+                f"Answer the following question about the image.\nQuestion: {example['question']}\nAnswer:",
+                model_name,
+            )
+            for example in batch
         ]
         images_batch = [example["image"] for example in batch]
         results_batch = [
@@ -294,18 +316,150 @@ def zeroshot_vqa2(
 
         inputs = processor(
             images=images_batch, text=questions_batch, return_tensors="pt", padding=True
-        ).to(device)
+        ).to("cuda", torch.float16)
 
         with torch.no_grad():
             output_ids = model.generate(**inputs, max_new_tokens=max_answer_tokens)
 
         for i in range(len(results_batch)):
-            results_batch[i]["answer"] = tokenizer.decode(
-                output_ids[i], skip_special_tokens=True
+            results_batch[i]["answer"] = parse_decoded_output(
+                questions_batch[i],
+                processor.tokenizer.decode(output_ids[i], skip_special_tokens=True),
             )
         results.extend(results_batch)
 
-    pd.DataFrame(results)[["question_id", "answer"]].to_csv(
-        f"{model_name.replace('/', '--')}-vqa2-answers.csv", index=False
-    )
+    if save_intermediate:
+        pd.DataFrame(results)[["question_id", "answer"]].to_csv(
+            f"{model_name.replace('/', '--')}-vqa2-{tag + '-' if tag else ''}answers.csv", index=False
+        )
     return eval_vqa(results)
+
+
+
+def finetune_vqa2(
+    model_name: str,
+    save_intermediate: bool = False,
+    num_epochs: int = 1,
+    batch_size: int = 16,
+    learning_rate: float = 1e-7,
+    train_limit: Optional[int] = None,
+    eval_limit: Optional[int] = None,
+    gradient_accumulation_steps: int = 4,
+    warmup_steps: int = 100,
+) -> None:
+    model, processor = load_model_and_processor(model_name)
+
+    VQA.info("Loading training data")  
+    train_dataset = load_dataset("HuggingFaceM4/VQAv2", split="train")
+    VQA.info("Training data loaded")
+    if train_limit is not None:
+        train_dataset = train_dataset.select(range(train_limit))
+
+    VQA.info(f"Training on {len(train_dataset)} examples for {num_epochs} epoch(s) in batches of {batch_size}.")
+
+    torch.manual_seed(0)
+    random.seed(0)
+    np.random.seed(0)
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=lambda x: x
+    )
+
+    # Setup optimizer and scheduler
+    optimizer = AdamW(model.parameters(), lr=learning_rate)
+    num_training_steps = len(train_dataloader) * num_epochs
+    lr_scheduler = get_linear_schedule_with_warmup(
+        optimizer=optimizer,
+        num_warmup_steps=warmup_steps,
+        num_training_steps=num_training_steps
+    )
+
+    # Training loop
+    model.train()
+    decoder_mask_works = True
+    for epoch in range(num_epochs):
+        total_loss = 0
+        progress_bar = tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs}")
+        
+        for step, batch in enumerate(progress_bar):
+            questions_batch = [
+                format_prompt(
+                    f"Answer the following question about the image.\nQuestion: {example['question'].capitalize().rstrip('?') + '?'}\nAnswer:",
+                    model_name,
+                )
+                for example in batch
+            ]
+            images_batch = [example['image'] for example in batch]
+            answers_batch = [example['multiple_choice_answer'] for example in batch]
+
+            # Process inputs
+            processor.tokenizer.padding_side = 'left' # keep text tokens recent
+            inputs = processor(
+                images=images_batch,
+                text=questions_batch,
+                return_tensors="pt",
+                padding=True
+            ).to("cuda", torch.float16)
+
+            # Process targets
+            processor.tokenizer.padding_side = 'right' # immediately predict text tokens
+            targets = processor.tokenizer( # use tokenizer so no image tokens added
+                text=answers_batch,
+                return_tensors="pt",
+                padding=True,
+                add_special_tokens=False # don't start with </s>
+            ).to('cuda')
+
+            target_ids = torch.where(targets.input_ids == processor.tokenizer.pad_token_id, torch.tensor(-100), targets.input_ids)
+
+            # Forward pass
+            if decoder_mask_works:
+                try:
+                    outputs = model(
+                        **inputs,
+                        labels=targets.input_ids,
+                        decoder_attention_mask=targets.attention_mask
+                    )
+                except Exception as e:
+                    if 'decoder_attention_mask' in str(e):
+                        decoder_mask_works = False
+                        target_ids = torch.where(targets.input_ids == processor.tokenizer.pad_token_id, torch.tensor(-100), targets.input_ids)
+                        VQA.info(str(inputs))
+                        outputs = model(
+                            **inputs,
+                            labels=target_ids,
+                        )
+                        VQA.info("outputs collected!")
+                    else:
+                        raise e
+            else:
+                target_ids = torch.where(targets.input_ids == processor.tokenizer.pad_token_id, torch.tensor(-100), targets.input_ids)
+                outputs = model(
+                    **inputs,
+                    labels=target_ids,
+                )
+
+            loss = outputs.loss / gradient_accumulation_steps
+            loss.backward()
+
+            # Gradient accumulation
+            if (step + 1) % gradient_accumulation_steps == 0:
+                optimizer.step()
+                lr_scheduler.step()
+                optimizer.zero_grad()
+
+            total_loss += loss.item() * gradient_accumulation_steps
+            progress_bar.set_postfix({"loss": loss.item() * gradient_accumulation_steps})
+
+        avg_loss = total_loss / len(train_dataloader)
+        VQA.info(f"Average loss: {avg_loss:.4f} at epoch {epoch+1}")
+
+    if save_intermediate:
+        output_dir = f"{'finetuned/' + model_name.replace('/', '--')}-vqa2-finetuned"
+        model.save_pretrained(output_dir)
+        processor.save_pretrained(output_dir)
+
+    return test_vqa2(model_name, model, processor, save_intermediate=save_intermediate, limit=eval_limit, tag='finetune')
+

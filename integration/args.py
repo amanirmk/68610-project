@@ -33,15 +33,21 @@ class Arguments:
         ],
         metadata={"nargs": "+"},
     )
-    device: str = dataclasses.field(
-        default="cuda",
-    )
     do_vipr_and_sizes: bool = dataclasses.field(
         default=True,
     )
     do_nlvr_zeroshot: bool = dataclasses.field(
         default=True,
     )
+    do_nlvr_finetune: bool = dataclasses.field(
+        default=True,
+    )
     do_vqa2_zeroshot: bool = dataclasses.field(
         default=True,
+    )
+    do_vqa2_finetune: bool = dataclasses.field(
+        default=True,
+    )
+    save_intermediate: bool = dataclasses.field(
+        default=False,
     )

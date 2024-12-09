@@ -1,9 +1,9 @@
+from dotenv import load_dotenv
 from transformers import HfArgumentParser
 
 from integration.args import Arguments
 from integration.evaluate import evaluate
 from integration.downstream import evaluate_downstream
-from dotenv import load_dotenv
 
 
 def main() -> None:
@@ -11,7 +11,12 @@ def main() -> None:
     args = HfArgumentParser(Arguments).parse_args()
     if args.do_vipr_and_sizes:
         evaluate(args)
-    if args.do_vqa2_zeroshot or args.do_nlvr_zeroshot:
+    if any([
+        args.do_vqa2_zeroshot,
+        args.do_vqa2_finetune,
+        args.do_nlvr_zeroshot,
+        args.do_nlvr_finetune,
+    ]):
         evaluate_downstream(args)
 
 

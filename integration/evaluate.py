@@ -5,6 +5,7 @@ import pandas as pd
 from PIL import Image
 from minicons import scorer
 from integration.abstract import Object
+from integration.util import load_scorer, format_prompt
 
 
 class Eval(Object):
@@ -18,14 +19,14 @@ def evaluate(args) -> None:
         stimuli = json.load(f)
     for model_name in args.model_names:
         try:
-            model = scorer.VLMScorer(model_name, device=args.device)
+            vlm_scorer = load_scorer(model_name)
             model_sizes.append(
-                {"model": model_name, "model_size": model.model.num_parameters()}
+                {"model": model_name, "model_size": vlm_scorer.model.num_parameters()}
             )
             model_rows = []
             for stimulus in stimuli["items"]:
-                prompt = stimulus_to_prompt(stimulus)
-                scores = prompt_vlm(model, prompt)
+                prompt = stimulus_to_prompt(stimulus, model_name)
+                scores = prompt_vlm(vlm_scorer, prompt)
                 row = {
                     "model": model_name,
                     "plus_amb_score": scores[0],
@@ -35,10 +36,11 @@ def evaluate(args) -> None:
                 }
                 rows.append(row)
                 model_rows.append(row)
-            pd.DataFrame(model_rows).to_csv(
-                f"{model_name.replace('/', '--')}-vipr-save-check.csv", index=False
-            )
-        except Exception as e:
+            if args.save_intermediate:
+                pd.DataFrame(model_rows).to_csv(
+                    f"{model_name.replace('/', '--')}-vipr-save-check.csv", index=False
+                )
+        except Exception as e:  # pylint: disable=broad-exception-caught
             Eval.error(f"Failed to evaluate {model_name}: {e}")
 
     model_size_df = pd.DataFrame(model_sizes)
@@ -51,7 +53,9 @@ def evaluate(args) -> None:
     compute_and_save_scores(df)
 
 
-def stimulus_to_prompt(stimulus: Dict[str, str]) -> Tuple[Image.Image, str, str, str]:
+def stimulus_to_prompt(
+    stimulus: Dict[str, str], model_name
+) -> Tuple[Image.Image, str, str, str]:
     assert stimulus.keys() == frozenset(["image", "text", "disambig"])
 
     image = Image.open(stimulus["image"])
@@ -65,23 +69,26 @@ def stimulus_to_prompt(stimulus: Dict[str, str]) -> Tuple[Image.Image, str, str,
     plus_amb = re.sub(r"\s+", " ", plus_amb).strip()
     minus_amb = re.sub(r"\s+", " ", minus_amb).strip()
 
+    plus_amb = format_prompt(plus_amb, model_name)
+    minus_amb = format_prompt(minus_amb, model_name)
+
     return image, plus_amb, minus_amb, critical
 
 
 def prompt_vlm(
-    model: scorer.VLMScorer, prompt: Tuple[Image.Image, str, str, str]
+    vlm_scorer: scorer.VLMScorer, prompt: Tuple[Image.Image, str, str, str]
 ) -> Tuple[float, float, float, float]:
     image, plus_amb, minus_amb, critical = prompt
     blank = Image.new("RGB", image.size, color="black")
 
-    plus_amb_img_score, minus_amb_img_score = model.conditional_score(
+    plus_amb_img_score, minus_amb_img_score = vlm_scorer.conditional_score(
         prefix=[plus_amb, minus_amb],
         stimuli=[critical, critical],
         image=[image, image],
         reduction=lambda x: -x.sum(0).item(),
     )
 
-    plus_amb_score, minus_amb_score = model.conditional_score(
+    plus_amb_score, minus_amb_score = vlm_scorer.conditional_score(
         prefix=[plus_amb, minus_amb],
         stimuli=[critical, critical],
         image=[blank, blank],
