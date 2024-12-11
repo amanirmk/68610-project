@@ -1,5 +1,8 @@
 # Module related
 # add module related files here (e.g. data, outputs, etc.)
+nlvr/
+.env
+batch*
 
 # Mac
 .DS_Store

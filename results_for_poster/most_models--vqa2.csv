@@ -1,0 +1,14 @@
+model,VQA2_exact_acc,VQA2_partial_acc
+Salesforce/blip2-opt-2.7b,0.1008409999999996,0.3429389999999842
+Salesforce/blip2-opt-6.7b,0.2427609999999859,0.4391210000000127
+Salesforce/blip2-opt-2.7b-coco,0.0482400000000007,0.448440000000013
+Salesforce/blip2-opt-6.7b-coco,0.2306949999999867,0.5408870000000524
+Salesforce/blip-image-captioning-base,0.0,0.0426620000000012
+microsoft/git-base-textcaps,0.0,0.0430420000000012
+microsoft/git-large-textcaps,0.0,0.0426990000000012
+microsoft/kosmos-2-patch14-224,0.0,0.729646000000081
+Salesforce/blip-image-captioning-large,0.0,0.0426650000000012
+microsoft/git-base,0.0,0.0447600000000013
+microsoft/git-large,0.0,0.0426590000000012
+microsoft/git-base-coco,0.0,0.0436240000000013
+microsoft/git-large-coco,0.0,0.0426590000000012

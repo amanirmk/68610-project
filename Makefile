@@ -37,11 +37,13 @@ mypy : env
 	@mypy \
 	-p $(PACKAGE) \
 	--ignore-missing-imports \
+	--exclude=nlvr \
 	--check-untyped-defs # or --disallow-untyped-defs
 
 pylint : env
 	@pylint $(PACKAGE) \
 	--disable C0112,C0113,C0114,C0115,C0116 \
+	--ignore=nlvr \
 	|| pylint-exit $$?
 
 black : env
