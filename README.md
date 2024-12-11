@@ -1,4 +1,6 @@
-# Syntactic disambiguation as a test of visual-textual integration in autoregressive visual language models
+# Synergy through syntax: Syntactic disambiguation as a test of visual-textual integration in autoregressive visual language models
+
+This is a final project for 6.8610: Quantitative Methods for Natural Language Processing. The repository will be made private again after grading.
 
 ### Setting up the environment
 
@@ -6,7 +8,7 @@ This repository makes use of anaconda for environment managing. To create the en
 
 ### Recreating results
 
-First, ensure that you have also cloned the NLVR repository and placed it in the project folder as `nlvr`. Second, if you choose to run models that require a Hugging Face API key (e.g., PaliGemma), please place it in a `.env` file in the project folder. Third, we recommend setting `HF_HOME` and `HF_HUB_CACHE` environment variables to a location where you can store a large amount of data.
+First, ensure that you have also cloned the NLVR repository (https://github.com/lil-lab/nlvr) and placed it in the project folder as `nlvr`. Second, if you choose to run models that require a Hugging Face API key (e.g., PaliGemma), please place it in a `.env` file in the project folder. Third, we recommend setting `HF_HOME` and `HF_HUB_CACHE` environment variables to a location where you can store a large amount of data.
 
 To run the evaluation pipeline with default arguments, simply run `make run`. Optionally, use `python -m integration [args]` to override the default arguments. You may also inspect and change the defaults in `integration/args.py`.
 
