@@ -1,0 +1,14 @@
+model,NLVR_finetune_precision,NLVR_finetune_consistency
+microsoft/git-large-textcaps,-1.0,-1.0
+microsoft/kosmos-2-patch14-224,-1.0,-1.0
+Salesforce/blip2-opt-2.7b,0.520896528479946,0.0
+Salesforce/blip2-opt-6.7b,0.5112908661948096,0.0
+Salesforce/blip2-opt-2.7b-coco,0.4602291877317155,0.0037453183520599
+Salesforce/blip2-opt-6.7b-coco,0.5053926525109538,0.0
+Salesforce/blip-image-captioning-base,-1.0,-1.0
+Salesforce/blip-image-captioning-large,-1.0,-1.0
+microsoft/git-base,-1.0,-1.0
+microsoft/git-large,-1.0,-1.0
+microsoft/git-base-coco,-1.0,-1.0
+microsoft/git-large-coco,-1.0,-1.0
+microsoft/git-base-textcaps,-1.0,-1.0

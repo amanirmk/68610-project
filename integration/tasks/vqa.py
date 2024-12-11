@@ -5,15 +5,27 @@ import re
 import random
 import pandas as pd
 import numpy as np
-from transformers import AutoModelForVision2Seq, AutoProcessor, AutoTokenizer, get_linear_schedule_with_warmup, AdamW
+from transformers import (
+    AutoModelForVision2Seq,
+    AutoProcessor,
+    AutoTokenizer,
+    get_linear_schedule_with_warmup,
+    AdamW,
+)
 import torch
 from torch.utils.data import DataLoader
 from datasets import load_dataset
-from integration.util import parse_decoded_output, load_model_and_processor, format_prompt
+from integration.util import (
+    parse_decoded_output,
+    load_model_and_processor,
+    format_prompt,
+)
 from integration.abstract import Object
+
 
 class VQA(Object):
     pass
+
 
 # ADAPTED FROM https://github.com/GT-Vision-Lab/VQA/blob/master/PythonEvaluationTools/vqaEvaluation/vqaEval.py
 
@@ -243,7 +255,7 @@ def eval_vqa(results: List[Dict[str, Any]]) -> Tuple[float, float]:
             partial_matching_answers = [
                 other_answer
                 for other_answer in other_answers
-                if other_answer["answer"] in model_answer
+                if other_answer["answer"] and other_answer["answer"] in model_answer
             ]
             exact_acc = min(1, float(len(exact_matching_answers)) / 3)
             partial_acc = min(1, float(len(partial_matching_answers)) / 3)
@@ -258,11 +270,14 @@ def eval_vqa(results: List[Dict[str, Any]]) -> Tuple[float, float]:
 
     overall_exact_acc = float(sum(question_exact_accs)) / len(question_exact_accs)
     overall_partial_acc = float(sum(question_partial_accs)) / len(question_partial_accs)
-    VQA.info(f"Exact acc = {overall_exact_acc:.3f}, Partial acc = {overall_partial_acc:.3f}")
+    VQA.info(
+        f"Exact acc = {overall_exact_acc:.3f}, Partial acc = {overall_partial_acc:.3f}"
+    )
     return overall_exact_acc, overall_partial_acc
 
 
 # ORIGINAL CODE
+
 
 def zeroshot_vqa2(
     model_name: str,
@@ -270,7 +285,14 @@ def zeroshot_vqa2(
     limit: Optional[int] = None,
 ) -> Tuple[float, float]:
     model, processor = load_model_and_processor(model_name, padding_side="left")
-    return test_vqa2(model_name, model, processor, save_intermediate=save_intermediate, limit=limit, tag='zeroshot')
+    return test_vqa2(
+        model_name,
+        model,
+        processor,
+        save_intermediate=save_intermediate,
+        limit=limit,
+        tag="zeroshot",
+    )
 
 
 def test_vqa2(
@@ -284,7 +306,7 @@ def test_vqa2(
     tag: Optional[str] = None,
 ) -> Tuple[float, float]:
     model.eval()
-    processor.tokenizer.padding_side = 'left'
+    processor.tokenizer.padding_side = "left"
 
     dataset = load_dataset(
         "HuggingFaceM4/VQAv2", split="validation", trust_remote_code=True
@@ -330,10 +352,10 @@ def test_vqa2(
 
     if save_intermediate:
         pd.DataFrame(results)[["question_id", "answer"]].to_csv(
-            f"{model_name.replace('/', '--')}-vqa2-{tag + '-' if tag else ''}answers.csv", index=False
+            f"{model_name.replace('/', '--')}-vqa2-{tag + '-' if tag else ''}answers.csv",
+            index=False,
         )
     return eval_vqa(results)
-
 
 
 def finetune_vqa2(
@@ -346,25 +368,24 @@ def finetune_vqa2(
     eval_limit: Optional[int] = None,
     gradient_accumulation_steps: int = 4,
     warmup_steps: int = 100,
-) -> None:
+) -> Tuple[float, float]:
     model, processor = load_model_and_processor(model_name)
 
-    VQA.info("Loading training data")  
+    VQA.info("Loading training data")
     train_dataset = load_dataset("HuggingFaceM4/VQAv2", split="train")
     VQA.info("Training data loaded")
     if train_limit is not None:
         train_dataset = train_dataset.select(range(train_limit))
 
-    VQA.info(f"Training on {len(train_dataset)} examples for {num_epochs} epoch(s) in batches of {batch_size}.")
+    VQA.info(
+        f"Training on {len(train_dataset)} examples for {num_epochs} epoch(s) in batches of {batch_size}."
+    )
 
     torch.manual_seed(0)
     random.seed(0)
     np.random.seed(0)
     train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        collate_fn=lambda x: x
+        train_dataset, batch_size=batch_size, shuffle=True, collate_fn=lambda x: x
     )
 
     # Setup optimizer and scheduler
@@ -373,7 +394,7 @@ def finetune_vqa2(
     lr_scheduler = get_linear_schedule_with_warmup(
         optimizer=optimizer,
         num_warmup_steps=warmup_steps,
-        num_training_steps=num_training_steps
+        num_training_steps=num_training_steps,
     )
 
     # Training loop
@@ -382,7 +403,7 @@ def finetune_vqa2(
     for epoch in range(num_epochs):
         total_loss = 0
         progress_bar = tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs}")
-        
+
         for step, batch in enumerate(progress_bar):
             questions_batch = [
                 format_prompt(
@@ -391,28 +412,34 @@ def finetune_vqa2(
                 )
                 for example in batch
             ]
-            images_batch = [example['image'] for example in batch]
-            answers_batch = [example['multiple_choice_answer'] for example in batch]
+            images_batch = [example["image"] for example in batch]
+            answers_batch = [example["multiple_choice_answer"] for example in batch]
 
             # Process inputs
-            processor.tokenizer.padding_side = 'left' # keep text tokens recent
+            processor.tokenizer.padding_side = "left"  # keep text tokens recent
             inputs = processor(
                 images=images_batch,
                 text=questions_batch,
                 return_tensors="pt",
-                padding=True
+                padding=True,
             ).to("cuda", torch.float16)
 
             # Process targets
-            processor.tokenizer.padding_side = 'right' # immediately predict text tokens
-            targets = processor.tokenizer( # use tokenizer so no image tokens added
+            processor.tokenizer.padding_side = (
+                "right"  # immediately predict text tokens
+            )
+            targets = processor.tokenizer(  # use tokenizer so no image tokens added
                 text=answers_batch,
                 return_tensors="pt",
                 padding=True,
-                add_special_tokens=False # don't start with </s>
-            ).to('cuda')
+                add_special_tokens=False,  # don't start with </s>
+            ).to("cuda")
 
-            target_ids = torch.where(targets.input_ids == processor.tokenizer.pad_token_id, torch.tensor(-100), targets.input_ids)
+            target_ids = torch.where(
+                targets.input_ids == processor.tokenizer.pad_token_id,
+                torch.tensor(-100),
+                targets.input_ids,
+            )
 
             # Forward pass
             if decoder_mask_works:
@@ -420,22 +447,29 @@ def finetune_vqa2(
                     outputs = model(
                         **inputs,
                         labels=targets.input_ids,
-                        decoder_attention_mask=targets.attention_mask
+                        decoder_attention_mask=targets.attention_mask,
                     )
                 except Exception as e:
-                    if 'decoder_attention_mask' in str(e):
+                    if "decoder_attention_mask" in str(e):
                         decoder_mask_works = False
-                        target_ids = torch.where(targets.input_ids == processor.tokenizer.pad_token_id, torch.tensor(-100), targets.input_ids)
-                        VQA.info(str(inputs))
+                        # -100 ids are ignored by torch cross entropy loss
+                        target_ids = torch.where(
+                            targets.input_ids == processor.tokenizer.pad_token_id,
+                            torch.tensor(-100),
+                            targets.input_ids,
+                        )
                         outputs = model(
                             **inputs,
                             labels=target_ids,
                         )
-                        VQA.info("outputs collected!")
                     else:
                         raise e
             else:
-                target_ids = torch.where(targets.input_ids == processor.tokenizer.pad_token_id, torch.tensor(-100), targets.input_ids)
+                target_ids = torch.where(
+                    targets.input_ids == processor.tokenizer.pad_token_id,
+                    torch.tensor(-100),
+                    targets.input_ids,
+                )
                 outputs = model(
                     **inputs,
                     labels=target_ids,
@@ -451,7 +485,9 @@ def finetune_vqa2(
                 optimizer.zero_grad()
 
             total_loss += loss.item() * gradient_accumulation_steps
-            progress_bar.set_postfix({"loss": loss.item() * gradient_accumulation_steps})
+            progress_bar.set_postfix(
+                {"loss": loss.item() * gradient_accumulation_steps}
+            )
 
         avg_loss = total_loss / len(train_dataloader)
         VQA.info(f"Average loss: {avg_loss:.4f} at epoch {epoch+1}")
@@ -461,5 +497,11 @@ def finetune_vqa2(
         model.save_pretrained(output_dir)
         processor.save_pretrained(output_dir)
 
-    return test_vqa2(model_name, model, processor, save_intermediate=save_intermediate, limit=eval_limit, tag='finetune')
-
+    return test_vqa2(
+        model_name,
+        model,
+        processor,
+        save_intermediate=save_intermediate,
+        limit=eval_limit,
+        tag="finetune",
+    )

@@ -1,0 +1,14 @@
+model,VQA2_zeroshot_exact_acc,VQA2_zeroshot_partial_acc
+Salesforce/blip2-opt-2.7b,0.265860000000005,0.5968499999999763
+Salesforce/blip2-opt-6.7b,0.3513966666666667,0.5942866666666435
+Salesforce/blip2-opt-2.7b-coco,0.1318966666666679,0.6088299999999768
+Salesforce/blip2-opt-6.7b-coco,0.3091566666666698,0.6137133333333078
+Salesforce/blip-image-captioning-base,0.0007,0.0
+Salesforce/blip-image-captioning-large,0.0007,2e-05
+microsoft/git-base,0.0007433333333333,0.0008733333333333
+microsoft/git-large,0.0007,0.0
+microsoft/git-base-coco,0.0007,0.0002933333333333
+microsoft/git-large-coco,0.0007,0.0
+microsoft/git-base-textcaps,0.0007666666666666,6.666666666666667e-05
+microsoft/git-large-textcaps,0.0007,0.0
+microsoft/kosmos-2-patch14-224,0.00099,0.0029566666666666

@@ -11,12 +11,14 @@ def main() -> None:
     args = HfArgumentParser(Arguments).parse_args()
     if args.do_vipr_and_sizes:
         evaluate(args)
-    if any([
-        args.do_vqa2_zeroshot,
-        args.do_vqa2_finetune,
-        args.do_nlvr_zeroshot,
-        args.do_nlvr_finetune,
-    ]):
+    if any(
+        [
+            args.do_vqa2_zeroshot,
+            args.do_vqa2_finetune,
+            args.do_nlvr_zeroshot,
+            args.do_nlvr_finetune,
+        ]
+    ):
         evaluate_downstream(args)
 
 

@@ -1,0 +1,7 @@
+model,model_size
+google/paligemma-3b-pt-224,2923466480
+google/paligemma-3b-pt-448,2924351216
+google/paligemma-3b-mix-224,2923466480
+google/paligemma-3b-mix-448,2924351216
+google/paligemma-3b-ft-ocrvqa-224,2923466480
+google/paligemma-3b-ft-ocrvqa-448,2924351216

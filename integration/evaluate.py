@@ -23,7 +23,6 @@ def evaluate(args) -> None:
             model_sizes.append(
                 {"model": model_name, "model_size": vlm_scorer.model.num_parameters()}
             )
-            model_rows = []
             for stimulus in stimuli["items"]:
                 prompt = stimulus_to_prompt(stimulus, model_name)
                 scores = prompt_vlm(vlm_scorer, prompt)
@@ -35,11 +34,6 @@ def evaluate(args) -> None:
                     "minus_amb_img_score": scores[3],
                 }
                 rows.append(row)
-                model_rows.append(row)
-            if args.save_intermediate:
-                pd.DataFrame(model_rows).to_csv(
-                    f"{model_name.replace('/', '--')}-vipr-save-check.csv", index=False
-                )
         except Exception as e:  # pylint: disable=broad-exception-caught
             Eval.error(f"Failed to evaluate {model_name}: {e}")
 
@@ -132,6 +126,7 @@ def compute_and_save_scores(df: pd.DataFrame) -> None:
                 "ViPr+",
                 "ViPr_adj+",
                 "DV",
+                "DT",
                 "DV+",
                 "DV_adj",
                 "DV_adj+",
@@ -140,6 +135,12 @@ def compute_and_save_scores(df: pd.DataFrame) -> None:
         .mean()
         .reset_index()
     )
+
+    summary["ViPr_prime"] = summary["DV"] / summary["DT"]
+    summary["ViPr_prime_adj"] = summary["DV_adj"] / summary["DT"]
+    summary["ViPr_prime+"] = summary["DV+"] / summary["DT"]
+    summary["ViPr_prime_adj+"] = summary["DV_adj+"] / summary["DT"]
+
     summary.to_csv(
         f"{'_'.join(m.split('/')[1] for m in df['model'].unique())}_summary.csv",
         index=False,

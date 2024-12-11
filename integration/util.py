@@ -33,26 +33,54 @@ def load_model_and_processor(
 
 
 def load_scorer(model_name: str) -> scorer.VLMScorer:
-    vlm_scorer = scorer.VLMScorer(
-        model_name, 
-        "auto",
-        load_in_8bit=True,
-        low_cpu_mem_usage=True,
-        torch_dtype=torch.float16
-    )
+    if "google" in model_name:
+        vlm_scorer = scorer.VLMScorer(
+            model_name,
+            "cuda",
+        )
+        vlm_scorer.model = vlm_scorer.model.to(torch.float32)
+    else:
+        try:
+            vlm_scorer = scorer.VLMScorer(
+                model_name,
+                "auto",
+                load_in_8bit=True,
+                low_cpu_mem_usage=True,
+                torch_dtype=torch.float16,
+            )
+        except Exception as e:
+            if "device_map" in str(e) or "8-bit" in str(e):
+                vlm_scorer = scorer.VLMScorer(
+                    model_name,
+                    "cuda",
+                )
+            else:
+                raise e
     if "blip2" in model_name and "coco" in model_name:
+        # from https://gist.github.com/zucchini-nlp/e9f20b054fa322f84ac9311d9ab67042
+        # throws warning saying to update accordingly
         vlm_scorer.tokenizer.num_query_tokens = vlm_scorer.model.config.num_query_tokens
         image_token = AddedToken("<image>", normalized=False, special=True)
         vlm_scorer.tokenizer.tokenizer.add_tokens([image_token], special_tokens=True)
-        vlm_scorer.model.resize_token_embeddings(len(vlm_scorer.tokenizer.tokenizer), pad_to_multiple_of=64)
-        vlm_scorer.model.config.image_token_index = len(vlm_scorer.tokenizer.tokenizer) - 1
+        vlm_scorer.model.resize_token_embeddings(
+            len(vlm_scorer.tokenizer.tokenizer), pad_to_multiple_of=64
+        )
+        vlm_scorer.model.config.image_token_index = (
+            len(vlm_scorer.tokenizer.tokenizer) - 1
+        )
     Util.info("Loaded " + model_name + " as scorer")
     return vlm_scorer
 
 
-def to_scorer(model: AutoModelForVision2Seq, processor: AutoProcessor) -> scorer.VLMScorer:
+def to_scorer(
+    model: AutoModelForVision2Seq, processor: AutoProcessor
+) -> scorer.VLMScorer:
+    model_name = getattr(model, "name_or_path", "")
+    if "google" in model_name:
+        # minicons uses full precision while model is half
+        model = model.to(torch.float32)
     processor.vocab_size = processor.tokenizer.vocab_size
-    vlm_scorer = scorer.VLMScorer(model, 'auto', processor)
+    vlm_scorer = scorer.VLMScorer(model, "auto", processor)
     return vlm_scorer
 
 
@@ -68,8 +96,5 @@ def parse_decoded_output(prompt: str, decoded_output: str) -> str:
     # remove tags from kosmos and google
     decoded_output = re.sub("<.+?>", "", decoded_output)
     # remove prompt from those that include it
-    if prompt in decoded_output:
-        decoded_output = decoded_output[decoded_output.index(prompt) + len(prompt) :]
-    # remove leading/trailing whitespace
-    decoded_output = decoded_output.strip()
+    decoded_output = re.sub(r".*answer\s?:\s*", "", decoded_output, flags=re.IGNORECASE)
     return decoded_output

@@ -3,7 +3,12 @@ import subprocess
 import pandas as pd
 from pathlib import Path
 from typing import Dict, Tuple, Optional
-from transformers import AutoProcessor, AutoModelForVision2Seq, AdamW, get_linear_schedule_with_warmup
+from transformers import (
+    AutoProcessor,
+    AutoModelForVision2Seq,
+    AdamW,
+    get_linear_schedule_with_warmup,
+)
 from PIL import Image
 import torch
 import random
@@ -11,7 +16,12 @@ import numpy as np
 from tqdm import tqdm
 from minicons import scorer
 from integration.abstract import Object
-from integration.util import load_scorer, format_prompt, load_model_and_processor, to_scorer
+from integration.util import (
+    load_scorer,
+    format_prompt,
+    load_model_and_processor,
+    to_scorer,
+)
 
 
 class NLVR(Object):
@@ -56,10 +66,17 @@ def zeroshot_nlvr(
     model_name: str, save_intermediate: bool = False
 ) -> Tuple[float, float]:
     vlm_scorer = load_scorer(model_name)
-    return test_nlvr(model_name, vlm_scorer, save_intermediate=save_intermediate, tag='zeroshot')
+    return test_nlvr(
+        model_name, vlm_scorer, save_intermediate=save_intermediate, tag="zeroshot"
+    )
 
 
-def test_nlvr(model_name: str, vlm_scorer: scorer.VLMScorer, save_intermediate: bool = False, tag: Optional[str] = None) -> Tuple[float, float]:
+def test_nlvr(
+    model_name: str,
+    vlm_scorer: scorer.VLMScorer,
+    save_intermediate: bool = False,
+    tag: Optional[str] = None,
+) -> Tuple[float, float]:
     NLVR.info("Loading data...")
     labeled_examples, image_paths = load_nlvr_data("nlvr/nlvr/dev/dev.json", "dev")
 
@@ -102,7 +119,9 @@ def test_nlvr(model_name: str, vlm_scorer: scorer.VLMScorer, save_intermediate: 
                 continue
 
     NLVR.info("Saving predictions.")
-    filename = model_name.replace("/", "--") + f"-nlvr1-{tag + '-' if tag else ''}answers.csv"
+    filename = (
+        model_name.replace("/", "--") + f"-nlvr1-{tag + '-' if tag else ''}answers.csv"
+    )
     with open(filename, "w") as f:
         for identifier, pred in predictions.items():
             f.write(f"split-{identifier}.png,{pred}\n")
@@ -135,11 +154,13 @@ def finetune_nlvr(
     train_limit: Optional[int] = None,
     gradient_accumulation_steps: int = 4,
     warmup_steps: int = 100,
-) -> None:
+) -> Tuple[float, float]:
     model, processor = load_model_and_processor(model_name)
 
-    labeled_examples, image_paths = load_nlvr_data("nlvr/nlvr/train/train.json", "train")
-    NLVR.info(f"THERE ARE A TOTAL OF {len(labeled_examples)} LABELED EXAMPLES (ie {6 * len(labeled_examples)} items)")
+    labeled_examples, image_paths = load_nlvr_data(
+        "nlvr/nlvr/train/train.json", "train"
+    )
+
     torch.manual_seed(0)
     random.seed(0)
     np.random.seed(0)
@@ -148,56 +169,53 @@ def finetune_nlvr(
     if train_limit is not None:
         labeled_examples = labeled_examples[:train_limit]
 
-    NLVR.info(f"Training on {len(labeled_examples)} examples for {num_epochs} epoch(s).")
+    NLVR.info(
+        f"Training on {len(labeled_examples)} examples for {num_epochs} epoch(s)."
+    )
 
     optimizer = AdamW(model.parameters(), lr=learning_rate)
     num_training_steps = len(labeled_examples) * num_epochs
     lr_scheduler = get_linear_schedule_with_warmup(
         optimizer=optimizer,
         num_warmup_steps=warmup_steps,
-        num_training_steps=num_training_steps
+        num_training_steps=num_training_steps,
     )
 
     model.train()
     for _ in range(num_epochs):
         total_loss = 0
         progress_bar = tqdm(labeled_examples, desc="Finetuning on nlvr")
+
         for step, example in enumerate(progress_bar):
             sentence = example["sentence"].rstrip(".").capitalize()
-
             prefix = f"Answer the following question about the image.\nQuestion: Is it true or false that `{sentence}`?\nAnswer:"
             prefix = format_prompt(prefix, model_name)
-            prefixes = [prefix]*6
+            prefixes = [prefix] * 6
 
             identifiers = [f"{example['identifier']}-{i}" for i in range(6)]
-            images = [Image.open(image_paths[i]).convert('RGB') for i in identifiers]
-            
-            labels = [example["label"].capitalize()]*6
+            images = [Image.open(image_paths[i]).convert("RGB") for i in identifiers]
+            labels = [example["label"].capitalize()] * 6
 
-            processor.tokenizer.padding_side = 'left' # keep text tokens recent
+            processor.tokenizer.padding_side = "left"  # keep text tokens recent
             inputs = processor(
-                images=images,
-                text=prefixes,
-                return_tensors="pt",
-                padding=True
+                images=images, text=prefixes, return_tensors="pt", padding=True
             ).to("cuda", torch.float16)
 
             # Process targets
-            processor.tokenizer.padding_side = 'right' # immediately predict text tokens
-            targets = processor.tokenizer( # use tokenizer so no image tokens added
+            processor.tokenizer.padding_side = "right"  # immediately predict text tokens (no padding actually done here though since one token)
+            targets = processor.tokenizer(  # use tokenizer so no image tokens added
                 text=labels,
                 return_tensors="pt",
-                padding=True,
-                add_special_tokens=False # don't start with </s>
-            ).to('cuda')
+                add_special_tokens=False,  # don't start with </s>
+            ).to("cuda")
 
             # Forward pass
             outputs = model(
                 **inputs,
                 labels=targets.input_ids,
-                decoder_attention_mask=targets.attention_mask
+                # no mask needed because only one token to target
             )
-          
+
             loss = outputs.loss / gradient_accumulation_steps
             loss.backward()
 
@@ -208,7 +226,9 @@ def finetune_nlvr(
                 optimizer.zero_grad()
 
             total_loss += loss.item() * gradient_accumulation_steps
-            progress_bar.set_postfix({"loss": loss.item() * gradient_accumulation_steps})
+            progress_bar.set_postfix(
+                {"loss": loss.item() * gradient_accumulation_steps}
+            )
 
         avg_loss = total_loss / len(labeled_examples)
         NLVR.info(f"Average loss: {avg_loss:.4f}")
@@ -219,5 +239,6 @@ def finetune_nlvr(
         processor.save_pretrained(output_dir)
 
     vlm_scorer = to_scorer(model, processor)
-    return test_nlvr(model_name, vlm_scorer, save_intermediate=save_intermediate, tag='finetune')
-
+    return test_nlvr(
+        model_name, vlm_scorer, save_intermediate=save_intermediate, tag="finetune"
+    )

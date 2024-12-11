@@ -49,5 +49,5 @@ class Arguments:
         default=True,
     )
     save_intermediate: bool = dataclasses.field(
-        default=False,
+        default=True,
     )

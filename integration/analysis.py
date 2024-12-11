@@ -1,107 +1,143 @@
-from functools import reduce
-import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 from scipy import stats
+import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def plots():  # pylint: disable=too-many-locals
-    plt.style.use("ggplot")
-
-    df = reduce(
-        lambda left, right: pd.merge(left, right, on="model", how="outer"),
+def update_ticks():
+    plt.gca().set_xticklabels(
         [
-            pd.read_csv("results/all_models--vipr.csv", index_col="model"),
-            pd.read_csv("results/all_models--sizes.csv", index_col="model"),
-            pd.read_csv("results/all_models--nlvr_zeroshot.csv", index_col="model"),
-        ],
-    ).drop(columns=["Unnamed: 0"])
-
-    predictors = [
-        c
-        for c in df.columns
-        if c.startswith("ViPr") or c.startswith("DV") or c == "model_size"
-    ]
-    task_metrics = [c for c in df.columns if c not in predictors]
-
-    # aggregate prediction (predict overall rank)
-    for task_metric in task_metrics:
-        df[task_metric + "_rank"] = df[task_metric].rank(ascending=False)
-    df["avg_rank"] = df[[task_metric + "_rank" for task_metric in task_metrics]].mean(
-        axis=1
+            " ".join(s[0].upper() + s[1:] for s in tick_label.get_text().split("_"))
+            for tick_label in plt.gca().get_xticklabels()
+        ]
     )
-    df["avg_rank"] = df["avg_rank"].rank(ascending=True)
-    df["dowdall_rank"] = (
-        1 / df[[task_metric + "_rank" for task_metric in task_metrics]].values
-    ).sum(axis=1)
-    df["dowdall_rank"] = df["dowdall_rank"].rank(ascending=False)
-
-    for predictor in predictors:
-        df[predictor + "_rank"] = df[predictor].rank(ascending=False)
-
-    predictors = [predictor + "_rank" for predictor in predictors]
-    task_metrics = [task_metric + "_rank" for task_metric in task_metrics] + [
-        "avg_rank",
-        "dowdall_rank",
-    ]
-
-    model_groups = set(model.split("/")[0] for model in df.index)
-    for predictor in predictors:
-        for task_metric in task_metrics:
-            r, p = stats.spearmanr(df[predictor], df[task_metric])
-            for do_rank in [True, False]:
-                if do_rank:
-                    x_name = predictor
-                    y_name = task_metric
-                else:
-                    x_name = predictor.replace("_rank", "")
-                    y_name = (
-                        task_metric.replace("_rank", "")
-                        if task_metric not in ["avg_rank", "dowdall_rank"]
-                        else task_metric
-                    )
-                plt.figure()
-                for model_group in model_groups:
-                    plt.scatter(
-                        df[x_name][df.index.str.startswith(model_group)],
-                        df[y_name][df.index.str.startswith(model_group)],
-                        label=model_group,
-                    )
-                plt.scatter([], [], c="k", label=f"Spearman r={r:.2f} (p={p:.2f})")
-                plt.xlabel(x_name)
-                plt.ylabel(y_name)
-                plt.legend()
-                plt.title(f"{x_name} vs {y_name}")
-                plt.tight_layout()
-                plt.savefig(f"plots/{x_name}--{y_name}.png")
-                plt.close()
-
-    # pairwise rank correlation in heatmap
-    r2_heatmap = pd.DataFrame(
-        index=predictors + task_metrics, columns=predictors + task_metrics
+    plt.gca().set_yticklabels(
+        [
+            " ".join(s[0].upper() + s[1:] for s in tick_label.get_text().split("_"))
+            for tick_label in plt.gca().get_yticklabels()
+        ]
     )
-    r_heatmap = pd.DataFrame(
-        index=predictors + task_metrics, columns=predictors + task_metrics
-    )
-    for i, predictor1 in enumerate(predictors + task_metrics):
-        for j, predictor2 in enumerate(predictors + task_metrics):
-            r, p = stats.spearmanr(df[predictor1], df[predictor2])
-            r_heatmap.iloc[i, j] = r
-            r2_heatmap.iloc[i, j] = r**2
+    plt.xticks(rotation=45, ha="right", rotation_mode="anchor")
 
-    plt.figure()
-    sns.heatmap(r_heatmap.astype(float), annot=False, vmin=-1, vmax=1, center=0)
-    plt.title("Rank Correlation (R)")
+
+def heatmaps(df, cols, rank_cols, pdf=False, exclude_r_ticks=True):
+    df = df[cols].dropna()
+    print(len(df))
+    hmap_r = pd.DataFrame(index=cols, columns=cols)
+    hmap_r2 = pd.DataFrame(index=cols, columns=cols)
+    for i, c1 in enumerate(cols):
+        x = df[c1]
+        if c1 in rank_cols:
+            x = -x
+        for j, c2 in enumerate(cols):
+            y = df[c2]
+            if c2 in rank_cols:
+                y = -y
+            r, p = stats.spearmanr(x, y)
+            hmap_r.iloc[i, j] = r
+            hmap_r2.iloc[i, j] = r**2
+
+    fig = plt.figure(figsize=(8, 8))
+    sns.heatmap(
+        hmap_r.astype(float),
+        annot=True,
+        vmin=-1,
+        vmax=1,
+        center=0,
+        square=True,
+        cbar=False,
+    )
+    update_ticks()
+    if exclude_r_ticks:
+        plt.xticks([], [])
+    plt.title("Rank Correlation ($R$)")
     plt.tight_layout()
-    plt.savefig("plots/r_heatmap.png")
+    if pdf:
+        plt.savefig("heatmap_r.pdf")
+    else:
+        plt.savefig("heatmap_r.png", dpi=300)
     plt.close()
-    plt.figure()
-    sns.heatmap(r2_heatmap.astype(float), annot=False, vmin=0, vmax=1)
-    plt.title("Rank Correlation (R^2)")
+
+    fig = plt.figure(figsize=(8, 8))
+    sns.heatmap(
+        hmap_r2.astype(float), annot=True, vmin=0, vmax=1, square=True, cbar=False
+    )
+    update_ticks()
+    plt.title("Rank Correlation ($R^2$)")
     plt.tight_layout()
-    plt.savefig("plots/r2_heatmap.png")
+    if pdf:
+        plt.savefig("heatmap_r2.pdf")
+    else:
+        plt.savefig("heatmap_r2.png", dpi=300)
     plt.close()
 
 
 if __name__ == "__main__":
-    plots()
+    df = pd.read_csv("results_for_paper/all.csv", index_col=None)
+    # missing paligemma, as run again afterwards (fine for heatmap, add afterwards to table)
+
+    # sort models by num nan
+    ind = df.isna().sum(axis=1).sort_values().index
+    df = df.loc[ind]
+
+    df["model_size"] = df["model_size"] / 1_000_000_000
+
+    table_cols = [
+        "model",
+        "model_size",
+        "DV",
+        "DT",
+        "ViPr",
+        "ViPr_prime",
+        "VQA2_zeroshot_exact_acc",
+        "VQA2_zeroshot_partial_acc",
+        "NLVR_zeroshot_precision",
+        "NLVR_zeroshot_consistency",
+        "VQA2_finetune_exact_acc",
+        "VQA2_finetune_partial_acc",
+    ]
+
+    df[table_cols].to_latex(
+        "table.tex",
+        na_rep=" ",
+        index=False,
+        float_format="%.4f",
+        columns=table_cols,
+        header=[
+            "Model",
+            "Size",
+            r"$D_V$",
+            r"$D_T$",
+            "vipr",
+            "vipr_prime",
+            r"VQA2$_ze$",
+            r"VQA2$_zp$",
+            r"NLVR$_zp$",
+            r"NLVR$_zc$",
+            r"VQA2$_fe$",
+            r"VQA2$_fp$",
+        ],
+        # still need to be adjusted in tex (couldn't use brackets)
+    )
+
+    agg_cols = [
+        "VQA2_zeroshot_exact_acc",
+        "VQA2_zeroshot_partial_acc",
+        "NLVR_zeroshot_precision",
+        "NLVR_zeroshot_consistency",
+    ]
+
+    ranks_list = []
+    for c in agg_cols:
+        ranks_list.append(df[c].rank(ascending=False).values)
+
+    ranks = np.vstack(ranks_list).T
+    df["rank_by_avg"] = pd.Series(ranks.mean(axis=1)).rank().values
+    df["rank_by_dowdall"] = (
+        pd.Series((1 / ranks).sum(axis=1)).rank(ascending=False).values
+    )
+
+    rank_cols = ["rank_by_avg", "rank_by_dowdall"]
+    cols = ["ViPr", "model_size"] + agg_cols + rank_cols
+    heatmaps(df, cols=cols, rank_cols=rank_cols)
